@@ -1,6 +1,7 @@
 package dotnet
+
 import (
-	"github.com/caddyserver/caddy/v2/caddyconfig/httpcaddyfile"
+    "github.com/caddyserver/caddy/v2/caddyconfig/httpcaddyfile"
     "github.com/caddyserver/caddy/v2/modules/caddyhttp"
 )
  
@@ -17,11 +18,6 @@ func parseCaddyfile(h httpcaddyfile.Helper) (caddyhttp.MiddlewareHandler, error)
                 d.ExecPath = h.Val()
             case "args":
                 d.Args = h.RemainingArgs()
-            case "socket":
-                if !h.NextArg() {
-                    return nil, h.ArgErr()
-                }
-                d.Socket = h.Val()
             case "env_vars":
                 d.EnvVars = h.RemainingArgs()
             case "working_dir":
@@ -29,10 +25,15 @@ func parseCaddyfile(h httpcaddyfile.Helper) (caddyhttp.MiddlewareHandler, error)
                     return nil, h.ArgErr()
                 }
                 d.WorkingDir = h.Val()
+            case "socket":
+                if !h.NextArg() {
+                    return nil, h.ArgErr()
+                }
+                d.Socket = h.Val()
             case "syslog_output":
                 d.SyslogOutput = true
             default:
-                return nil, h.Errf("unrecognized subdirective %s", h.Val())
+                return nil, h.Errf("unknown property: %s", h.Val())
             }
         }
     }

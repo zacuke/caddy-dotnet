@@ -40,6 +40,13 @@ func (d *DotNet) Provision(ctx caddy.Context) error {
 
     d.clients = newClientPool(d.generatedSocket)
 
+    // Launch .NET application in the background
+    go d.launchApplication()
+
+    return nil
+}
+
+func (d *DotNet) launchApplication() {
     args := append(d.Args, fmt.Sprintf("--urls=http://unix:%s", d.generatedSocket))
     cmd := exec.Command(d.ExecPath, args...)
     cmd.Env = append(os.Environ(), d.EnvVars...)
@@ -58,11 +65,25 @@ func (d *DotNet) Provision(ctx caddy.Context) error {
 
     err := cmd.Start()
     if err != nil {
-        return fmt.Errorf("failed to start the .NET application: %w", err)
+        d.logger.Error("Failed to start the .NET application",
+            zap.String("exec_path", d.ExecPath),
+            zap.Error(err))
+        return
     }
+
+    // Monitor the application in a separate goroutine
+    go func() {
+        err := cmd.Wait()
+        if err != nil {
+            d.logger.Error("Application exited with error",
+                zap.String("exec_path", d.ExecPath),
+                zap.Error(err))
+        } else {
+            d.logger.Info("Application exited",
+                zap.String("exec_path", d.ExecPath))
+        }
+    }()
 
     // Give the application some time to start
     time.Sleep(5 * time.Second)
-
-    return nil
 }

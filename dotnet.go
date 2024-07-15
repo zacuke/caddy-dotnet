@@ -12,17 +12,17 @@ func init() {
     httpcaddyfile.RegisterHandlerDirective("dotnet", parseCaddyfile)
 }
 
-// DotNet represents the configuration for running .NET applications
+// DotNet represents the configuration for running a .NET application
 type DotNet struct {
-    ExecPath     string   `json:"exec_path"`
-    Args         []string `json:"args"`
-    Socket       string   `json:"socket,omitempty"`  // Now optional
-    EnvVars      []string `json:"env_vars"`
-    WorkingDir   string   `json:"working_dir"`
-    SyslogOutput bool     `json:"syslog_output"`
-    logger       *zap.Logger
-    clients      *clientPool
-    generatedSocket string // New field to store the generated socket path
+    ExecPath       string   `json:"exec_path"`
+    Args           []string `json:"args"`
+    EnvVars        []string `json:"env_vars"`
+    WorkingDir     string   `json:"working_dir"`
+    Socket         string   `json:"socket,omitempty"`
+    SyslogOutput   bool     `json:"syslog_output"`
+    logger         *zap.Logger
+    clients        *clientPool
+    generatedSocket string
 }
 
 // CaddyModule returns the Caddy module information.

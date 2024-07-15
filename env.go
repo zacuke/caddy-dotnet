@@ -1,23 +1,14 @@
 package dotnet
 
 import (
-    "crypto/tls"
     "net"
     "net/http"
     "path/filepath"
     "strings"
     "github.com/caddyserver/caddy/v2"
-    "github.com/caddyserver/caddy/v2/modules/caddytls"
 )
 
 var headerNameReplacer = strings.NewReplacer(" ", "_", "-", "_")
-
-var tlsProtocolStrings = map[uint16]string{
-    tls.VersionTLS10: "TLSv1",
-    tls.VersionTLS11: "TLSv1.1",
-    tls.VersionTLS12: "TLSv1.2",
-    tls.VersionTLS13: "TLSv1.3",
-}
 
 // buildEnv returns a set of environment variables for the request.
 func (d DotNet) buildEnv(r *http.Request) (map[string]string, error) {
@@ -96,32 +87,9 @@ func (d DotNet) buildEnv(r *http.Request) (map[string]string, error) {
         env["SERVER_PORT"] = "443"
     }
 
-    if r.TLS != nil {
-        env["HTTPS"] = "on"
-        if v, ok := tlsProtocolStrings[r.TLS.Version]; ok {
-            env["SSL_PROTOCOL"] = v
-        }
-        for _, cs := range caddytls.SupportedCipherSuites() {
-            if cs.ID == r.TLS.CipherSuite {
-                env["SSL_CIPHER"] = cs.Name
-                break
-            }
-        }
-    }
-
-    // Add user-defined environment variables
-    for _, value := range d.EnvVars {
-        kv := strings.SplitN(value, "=", 2)
-        if len(kv) == 2 {
-            env[kv[0]] = repl.ReplaceAll(kv[1], "")
-        }
-    }
-
-    // Add HTTP headers as environment variables
-    for field, val := range r.Header {
-        header := "HTTP_" + strings.ToUpper(headerNameReplacer.Replace(field))
-        env[header] = strings.Join(val, ", ")
-    }
+    addTLSEnv(r, env)
+    addUserDefinedEnv(d, repl, env)
+    addHTTPHeadersEnv(r, env)
 
     return env, nil
 }
