@@ -18,7 +18,7 @@ To use this plugin, you need to build Caddy with the plugin included. The easies
    xcaddy build --with github.com/zacuke/caddy-dotnet
    ```
  
-This command will build a Caddy binary that includes the .NET plugin. The binary will be named `caddy` and will be in your current directory, which should replace the binary on server to enable plugin.
+This command will build a Caddy binary that includes the .NET plugin. The binary will be named `caddy` and will be in your current directory. Replace the binary on server to enable plugin.
 
 ## Usage
 
@@ -48,9 +48,11 @@ To use the plugin, you need to configure it in your Caddyfile. Here's a sample c
  
 ## Notes
 
-- This plugin uses Unix sockets for communication between Caddy and your .NET application. The --urls parameter is added to your .NET application to listen to unix socket.
+- This plugin uses Unix sockets for communication between Caddy and your .NET application.
+- The --urls parameter is added to your .NET application to listen to unix socket.
 - The plugin will start your .NET application automatically when Caddy starts.
 - WebSocket support is included.
+- The process currently runs under caddy user. 
 
  
 For more detailed information about Caddy and its configuration, please refer to the [official Caddy documentation](https://caddyserver.com/docs/).
