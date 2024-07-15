@@ -18,9 +18,7 @@ To use this plugin, you need to build Caddy with the plugin included. The easies
    xcaddy build --with github.com/zacuke/caddy-dotnet
    ```
  
-This command will build a Caddy binary that includes the .NET plugin. The binary will be named `caddy` and will be in your current directory.
-
-Use this caddy executable instead of the  default to utilize dotnet 
+This command will build a Caddy binary that includes the .NET plugin. The binary will be named `caddy` and will be in your current directory, which should replace the binary on server to enable plugin.
 
 ## Usage
 
