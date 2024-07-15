@@ -4,6 +4,7 @@ import (
     "context"
     "crypto/tls"
     "fmt"
+    "io"
     "net"
     "net/http"
     "os"
@@ -78,14 +79,23 @@ func (d DotNet) ServeHTTP(w http.ResponseWriter, r *http.Request, next caddyhttp
     }
     defer res.Body.Close()
 
+    // Copy headers from the response
     for k, v := range res.Header {
         for _, vv := range v {
             w.Header().Add(k, vv)
         }
     }
+
+    // Write the status code from the response
     w.WriteHeader(res.StatusCode)
-    _, err = w.Write([]byte(res.Status))
-    return err
+
+    // Copy the response body
+    if _, err := io.Copy(w, res.Body); err != nil {
+        d.logger.Error("Error copying response body", zap.Error(err))
+        return err
+    }
+
+    return nil
 }
 
 // RoundTrip implements http.RoundTripper.
@@ -106,7 +116,7 @@ func (d DotNet) RoundTrip(r *http.Request) (*http.Response, error) {
     }
 
     // Construct the URL with the correct scheme
-    url := fmt.Sprintf("http://%s%s", r.Host, r.URL.Path)
+    url := fmt.Sprintf("http://unix%s", r.URL.Path)
     if r.URL.RawQuery != "" {
         url += "?" + r.URL.RawQuery
     }
@@ -119,7 +129,7 @@ func (d DotNet) RoundTrip(r *http.Request) (*http.Response, error) {
         return nil, err
     }
 
-    req.Header = r.Header
+    req.Header = r.Header.Clone()
     req.Host = r.Host
     req.RemoteAddr = r.RemoteAddr
     for k, v := range env {
@@ -135,7 +145,6 @@ func (d DotNet) RoundTrip(r *http.Request) (*http.Response, error) {
 
     return resp, nil
 }
-
 
 // buildEnv returns a set of CGI environment variables for the request.
 func (d DotNet) buildEnv(r *http.Request) (map[string]string, error) {
