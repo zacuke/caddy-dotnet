@@ -16,12 +16,13 @@ func init() {
 type DotNet struct {
     ExecPath     string   `json:"exec_path"`
     Args         []string `json:"args"`
-    Socket       string   `json:"socket"`
+    Socket       string   `json:"socket,omitempty"`  // Now optional
     EnvVars      []string `json:"env_vars"`
     WorkingDir   string   `json:"working_dir"`
     SyslogOutput bool     `json:"syslog_output"`
     logger       *zap.Logger
     clients      *clientPool
+    generatedSocket string // New field to store the generated socket path
 }
 
 // CaddyModule returns the Caddy module information.

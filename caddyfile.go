@@ -3,6 +3,7 @@ import (
 	"github.com/caddyserver/caddy/v2/caddyconfig/httpcaddyfile"
     "github.com/caddyserver/caddy/v2/modules/caddyhttp"
 )
+ 
 // parseCaddyfile sets up the handler from Caddyfile tokens.
 func parseCaddyfile(h httpcaddyfile.Helper) (caddyhttp.MiddlewareHandler, error) {
     var d DotNet
@@ -35,5 +36,5 @@ func parseCaddyfile(h httpcaddyfile.Helper) (caddyhttp.MiddlewareHandler, error)
             }
         }
     }
-    return d, nil
+    return &d, nil
 }
