@@ -1,6 +1,6 @@
 # Caddy .NET Plugin
 
-This plugin allows Caddy to serve .NET applications directly in Caddy without running seperate services.
+This plugin allows Caddy to serve .NET applications directly.
 
 ## Installation
 
@@ -30,11 +30,10 @@ To use the plugin, you need to configure it in your Caddyfile. Here's a sample c
 :80 {
     route {
         dotnet {
-            exec_path /path/to/your/dotnet/app
-            working_dir /path/to/your/working/directory
-            args arg1 arg2
-            env_vars KEY1=VALUE1 KEY2=VALUE2
-            socket /path/to/socket/file.sock
+            exec_path /usr/bin/dotnet
+            working_dir /var/www/example
+            args /var/www/example/example.dll arg2
+            env_vars ASPNETCORE_ENVIRONMENT=Test KEY2=VALUE2
             syslog_output
         }
     }
@@ -43,20 +42,17 @@ To use the plugin, you need to configure it in your Caddyfile. Here's a sample c
 
 ### Configuration Options
 
-- `exec_path`: Path to your .NET application executable (required)
+- `exec_path`: Path to your .NET application executable or /usr/bin/dotnet (required)
 - `working_dir`: Working directory for your .NET application
-- `args`: Additional arguments to pass to your .NET application
+- `args`: Additional arguments to pass to your .NET application or specify .NET application dll when exec_path=/usr/bin/dotnet
 - `env_vars`: Environment variables to set for your .NET application
-- `socket`: Path to the Unix socket file (if not specified, a random socket will be generated)
 - `syslog_output`: If present, redirects the .NET application's output to syslog
-
-Make sure your .NET application is configured to listen on the Unix socket specified in the Caddyfile (or the generated one if not specified).
-
+ 
 ## Notes
 
-- This plugin uses Unix sockets for communication between Caddy and your .NET application. Ensure your .NET application is configured to use the same socket.
+- This plugin uses Unix sockets for communication between Caddy and your .NET application. The --urls parameter is added to your .NET application to listen to unix socket.
 - The plugin will start your .NET application automatically when Caddy starts.
-- WebSocket support is included, but make sure your .NET application is properly configured to handle WebSocket connections over the Unix socket.
+- WebSocket support is included.
 
  
 For more detailed information about Caddy and its configuration, please refer to the [official Caddy documentation](https://caddyserver.com/docs/).
