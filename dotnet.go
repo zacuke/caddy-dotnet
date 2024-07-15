@@ -1,131 +1,85 @@
 package dotnet
 
 import (
-    "context"
     "fmt"
-    "net"
     "net/http"
     "os"
     "os/exec"
-    "strings"
     "time"
+
     "github.com/caddyserver/caddy/v2"
-    "github.com/caddyserver/caddy/v2/caddyconfig/caddyfile"
     "github.com/caddyserver/caddy/v2/modules/caddyhttp"
+    "github.com/caddyserver/caddy/v2/modules/caddyhttp/reverseproxy"
+    "go.uber.org/zap"
 )
 
 func init() {
-    caddy.RegisterModule(Dotnet{})
+    caddy.RegisterModule(DotNet{})
 }
 
-type Dotnet struct {
-    ExecPath string `json:"exec_path"`
-    Args     string `json:"args"`
-    Socket   string `json:"socket"`
+// DotNet represents the configuration for running .NET applications
+type DotNet struct {
+    ExecPath     string   `json:"exec_path"`
+    Args         []string `json:"args"`
+    Socket       string   `json:"socket"`
+    EnvVars      []string `json:"env_vars"`
+    WorkingDir   string   `json:"working_dir"`
+    SyslogOutput bool     `json:"syslog_output"`
+    logger       *zap.Logger
 }
 
-func (Dotnet) CaddyModule() caddy.ModuleInfo {
+// CaddyModule returns the Caddy module information.
+func (DotNet) CaddyModule() caddy.ModuleInfo {
     return caddy.ModuleInfo{
         ID:  "http.handlers.dotnet",
-        New: func() caddy.Module { return new(Dotnet) },
+        New: func() caddy.Module { return new(DotNet) },
     }
 }
 
-func (d Dotnet) Provision(ctx caddy.Context) error {
-    return nil
-}
+// Provision sets up the module.
+func (d *DotNet) Provision(ctx caddy.Context) error {
+    d.logger = ctx.Logger()
 
-func (d Dotnet) Validate() error {
-    if d.ExecPath == "" {
-        return fmt.Errorf("exec_path is required")
-    }
-    if d.Socket == "" {
-        d.Socket = "/tmp/kestrel.sock"
-    }
-    return nil
-}
-
-func (d Dotnet) ServeHTTP(w http.ResponseWriter, r *http.Request, next caddyhttp.Handler) error {
-    if _, err := os.Stat(d.Socket); err == nil {
-        os.Remove(d.Socket)
-    }
-
-    args := append(strings.Split(d.Args, " "), "--urls", "http://unix:"+d.Socket)
+    args := append(d.Args, fmt.Sprintf("--urls=http://unix:%s", d.Socket))
     cmd := exec.Command(d.ExecPath, args...)
-    cmd.Stdout = os.Stdout
-    cmd.Stderr = os.Stderr
+    cmd.Env = append(os.Environ(), d.EnvVars...)
+    cmd.Dir = d.WorkingDir
 
-    go func() {
-        if err := cmd.Run(); err != nil {
-            fmt.Fprintf(os.Stderr, "Failed to start .NET application: %v\n", err)
-        }
-    }()
-
-    for i := 0; i < 10; i++ {
-        if _, err := os.Stat(d.Socket); err == nil {
-            break
-        }
-        time.Sleep(100 * time.Millisecond)
+    if d.SyslogOutput {
+        cmd.Stdout = os.Stdout
+        cmd.Stderr = os.Stderr
     }
 
-    conn, err := net.Dial("unix", d.Socket)
+    d.logger.Info("Starting .NET application", zap.String("exec_path", d.ExecPath), zap.Strings("args", args), zap.Strings("env_vars", d.EnvVars))
+
+    err := cmd.Start()
     if err != nil {
-        http.Error(w, err.Error(), http.StatusInternalServerError)
-        return err
+        return fmt.Errorf("failed to start the .NET application: %w", err)
     }
-    defer conn.Close()
 
-    proxy := &http.Transport{
-        DialContext: func(_ context.Context, _, _ string) (net.Conn, error) {
-            return conn, nil
+    // Give the application some time to start
+    time.Sleep(5 * time.Second)
+
+    return nil
+}
+
+// ServeHTTP implements caddyhttp.MiddlewareHandler.
+func (d DotNet) ServeHTTP(w http.ResponseWriter, r *http.Request, next caddyhttp.Handler) error {
+    d.logger.Info("Handling request", zap.String("method", r.Method), zap.String("url", r.URL.String()))
+
+    proxy := reverseproxy.Handler{
+        Upstreams: reverseproxy.UpstreamPool{
+            &reverseproxy.Upstream{
+                Dial: "unix:" + d.Socket,
+            },
         },
     }
-    proxyClient := &http.Client{Transport: proxy}
-    proxyReq, err := http.NewRequest(r.Method, "http://unix"+r.URL.RequestURI(), r.Body)
-    if err != nil {
-        return err
-    }
-    proxyReq.Header = r.Header
 
-    proxyResp, err := proxyClient.Do(proxyReq)
-    if err != nil {
-        return err
-    }
-    defer proxyResp.Body.Close()
-
-    for key, values := range proxyResp.Header {
-        for _, value := range values {
-            w.Header().Add(key, value)
-        }
-    }
-    w.WriteHeader(proxyResp.StatusCode)
-    _, err = w.Write([]byte(proxyResp.Status))
-    return err
+    return proxy.ServeHTTP(w, r, next)
 }
 
-func (d *Dotnet) UnmarshalCaddyfile(h *caddyfile.Dispenser) error {
-    for h.Next() {
-        for h.NextBlock(0) {
-            switch h.Val() {
-            case "exec_path":
-                if !h.Args(&d.ExecPath) {
-                    return h.ArgErr()
-                }
-            case "args":
-                if !h.Args(&d.Args) {
-                    return h.ArgErr()
-                }
-            case "socket":
-                if !h.Args(&d.Socket) {
-                    return h.ArgErr()
-                }
-            }
-        }
-    }
-    return nil
-}
-
+// Interface guards
 var (
-    _ caddyhttp.MiddlewareHandler = (*Dotnet)(nil)
-    _ caddyfile.Unmarshaler       = (*Dotnet)(nil)
+    _ caddy.Module                = (*DotNet)(nil)
+    _ caddyhttp.MiddlewareHandler = (*DotNet)(nil)
 )
