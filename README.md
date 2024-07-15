@@ -45,14 +45,15 @@ To use the plugin, you need to configure it in your Caddyfile. Here's a sample c
 - `args`: Additional arguments to pass to your .NET application or specify .NET application dll when exec_path=/usr/bin/dotnet
 - `env_vars`: Environment variables to set for your .NET application
 - `syslog_output`: If present, redirects the .NET application's output to syslog
+- `socket`: Optional parameter to specify Unix socket path
  
 ## Notes
 
-- This plugin uses Unix sockets for communication between Caddy and your .NET application.
-- The --urls parameter is added to your .NET application to listen to unix socket.
+- This plugin proxies http traffic over Unix socket for communication between Caddy and your .NET application.
+- The --urls parameter is added to your .NET application to listen to Unix socket.
 - The plugin will start your .NET application automatically when Caddy starts.
+- The process runs under caddy user and forking .NET process as www-data (or specified user) is a desired feature but not currently implemented.
 - WebSocket support is included.
-- The process currently runs under caddy user. 
 
  
 For more detailed information about Caddy and its configuration, please refer to the [official Caddy documentation](https://caddyserver.com/docs/).
